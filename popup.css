@@ -1,0 +1,185 @@
+/* Global Styles */
+body {
+    font-family: 'Quicksand', sans-serif;
+    background: #fff;                /* Deep black background */
+    color: #000;                     /* White text */
+    width: 450px;
+    margin: 0;
+    padding: 10px;
+  }
+  
+  /* Headings */
+  h1, h2 {
+    font-size: 20px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #00854d; /* Dark green accent */
+    padding-bottom: 5px;
+    color: #000;
+  }
+  
+  /* Form Groups */
+  .form-group {
+    margin-bottom: 10px;
+  }
+  
+  label {
+    display: block;
+    margin-bottom: 5px;
+    color: #000;
+  }
+  
+  /* Input Fields */
+  input[type="text"],
+  input[type="number"] {
+    width: 100%;
+    padding: 5px;
+    box-sizing: border-box;
+    background-color: #fff;          /* Dark background for inputs */
+    border: 1px solid #ccc;       /* Dark green border */
+    color: #333;
+    font-family: 'Quicksand', sans-serif;
+  }
+  
+  /* Buttons - Rounded and dark green style */
+  button {
+    padding: 8px 14px;
+    margin-top: 5px;
+    cursor: pointer;
+    background-color: #00854d;       /* Dark green background */
+    border: 1px solid #00854d;
+    color: #fff;
+    font-family: 'Quicksand', sans-serif;
+    transition: background-color 0.2s, color 0.2s;
+    border-radius: 15px;             /* More rounded */
+  }
+  
+  button:hover {
+    background-color: #34a260;       /* Slightly lighter green on hover */
+    color: #fff;
+  }
+
+  .button-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .csv-button {
+    padding: 8px 18px;
+    margin-top: 7px;
+    cursor: pointer;
+    background-color: #00854d;
+    border: 1px solid #00854d;
+    color: #fff;
+    font-family: 'Quicksand', sans-serif;
+    transition: background-color 0.2s, color 0.2s;
+    border-radius: 15px;
+    font-size: 14px;
+  }
+  
+  .csv-button:hover {
+    background-color: #34a260;
+    color: #fff;
+  }
+  
+  /* Transaction List */
+  #transaction-list ul,
+  #symbolResults {
+    list-style-type: none;
+    padding: 0;
+    max-height: 220px;               /* Enable vertical scrolling after ~10 lines */
+    overflow-y: auto;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    margin-bottom: 10px;
+  }
+  
+  #transaction-list li,
+  #symbolResults li {
+    background-color: #fafafa;
+    margin-bottom: 5px;
+    padding: 5px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+  }
+  
+  /* Remove Button */
+  .remove-btn {
+    background-color: #d9534f;
+    border: 1px solid #d9534f;       /* Optionally keep a soft red for removals */
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: 'Quicksand', sans-serif;
+  }
+  
+  .remove-btn:hover {
+    background-color: rgb(244, 78, 36);
+    color: #fff;
+  }
+  
+  /* Result Section Headers */
+  #result h2 {
+    margin-top: 15px;
+    font-size: 18px;
+    color: #333;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 5px;
+  }
+  
+  /* Overall Gain/Loss Text */
+  #totalGainLoss {
+    font-size: 16px;
+    font-weight: bold;
+    margin-top: 10px;
+    color: #ccc;
+  }
+  
+  /* Container for tables (allows horizontal scrolling if needed) */
+  .table-container {
+    overflow-x: auto;
+  }
+  
+  /* Table styling for per-symbol table */
+  #resultsTable {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 10px;
+    font-family: 'Quicksand', sans-serif;
+    font-size: 14px;
+    background-color: #fff;         /* Dark table background */
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  }
+  
+  #resultsTable th,
+  #resultsTable td {
+    border: 0.5px solid #00854d;
+    padding: 5px;
+    text-align: center;
+  }
+  
+  #resultsTable th {
+    background-color: #00854d;      /* Dark green header */
+    color: #fff;
+  }
+  
+  /* Table styling for overall summary table */
+  #overallTable {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 10px;
+    font-family: 'Quicksand', sans-serif;
+    font-size: 14px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  }
