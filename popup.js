@@ -5,6 +5,8 @@ const useMock = false;
 // These values mimic the structure returned by the Alpha Vantage API.
 const mockPrices = {};
 
+const API_KEY = "cfdb55b3-05da-4b66-900d-3f9bec143dd0";
+
 // Helper function to fetch price data for a symbol.
 function fetchPriceData(symbol) {
     if (useMock && mockPrices[symbol]) {
@@ -12,7 +14,7 @@ function fetchPriceData(symbol) {
         setTimeout(() => resolve(mockPrices[symbol]), 200);
       });
     } else {
-        const workerUrl = `https://fancy-lab-b7ad.north212wangbo.workers.dev/?symbol=${encodeURIComponent(symbol)}`;
+        const workerUrl = `https://yahoo-stock-api.vercel.app/api/stock/?symbol=${encodeURIComponent(symbol)}&apiKey=${API_KEY}`;
         return fetch(workerUrl).then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error: ${response.status}`);
@@ -122,7 +124,7 @@ function calculateGains() {
         fetchPriceData(symbol)
             .then((data) => {
             // Use the full JSON object from the worker and extract the 'close' field.
-            const lastClose = data["close"];
+            const lastClose = data["price"];
             if (!lastClose) {
                 throw new Error("No data returned for " + symbol);
             }
