@@ -96,171 +96,199 @@ document.getElementById('addBtn').addEventListener('click', () => {
 // --- CALCULATION: Realized and Paper Gains (FIFO) with Table Output ---
 function calculateGains() {
     loadTransactions((transactions) => {
-        // Group transactions by symbol.
-        const grouped = transactions.reduce((acc, tx) => {
+      // Group transactions by symbol.
+      const grouped = transactions.reduce((acc, tx) => {
         if (!acc[tx.symbol]) {
-            acc[tx.symbol] = [];
+          acc[tx.symbol] = [];
         }
         acc[tx.symbol].push(tx);
         return acc;
-        }, {});
-
-        const symbols = Object.keys(grouped);
-        let overallRealizedGain = 0;
-        let overallPaperGain = 0;
-        let overallCost = 0;   // Total buy cost (for calculating percentages, if needed)
-        let overallValue = 0;  // Sum of current values for each symbol
-        let completedRequests = 0;
-
-        // Clear per-symbol table body.
-        const resultsBody = document.getElementById('resultsBody');
-        resultsBody.innerHTML = "";
-
-        if (!transactions.length) {
-            return; // No transactions, exit the function
-        }
-
-        symbols.forEach((symbol) => {
+      }, {});
+  
+      const symbols = Object.keys(grouped);
+      let overallTotalGain = 0;
+      let overallValue = 0;
+      let overallTrueCost = 0;
+      let overallQuantity = 0;
+      let completedRequests = 0;
+  
+      // Clear per-symbol table body.
+      const resultsBody = document.getElementById('resultsBody');
+      resultsBody.innerHTML = "";
+  
+      if (!transactions.length) {
+        return; // No transactions, exit the function
+      }
+  
+      symbols.forEach((symbol) => {
         fetchPriceData(symbol)
-            .then((data) => {
-            // Use the full JSON object from the worker and extract the 'close' field.
+          .then((data) => {
+            // Extract the price field from the API response.
             const lastClose = data["price"];
             if (!lastClose) {
-                throw new Error("No data returned for " + symbol);
+              throw new Error("No data returned for " + symbol);
             }
             const currentPrice = parseFloat(lastClose);
             if (isNaN(currentPrice)) {
-                throw new Error("Invalid current price for " + symbol);
+              throw new Error("Invalid current price for " + symbol);
             }
-
-            // ----- FIFO ALGORITHM FOR REALIZED & PAPER GAINS -----
+  
+            // --- Calculate remaining shares using FIFO ---
+            // Process each transaction in order.
             let fifoQueue = [];
-            let realizedGain = 0;
-            let realizedCost = 0;
-
             grouped[symbol].forEach((tx) => {
-                const shares = parseFloat(tx.shares);
-                const price = parseFloat(tx.purchasePrice);
-                if (shares > 0) {
+              const shares = parseFloat(tx.shares);
+              const price = parseFloat(tx.purchasePrice);
+              if (shares > 0) {
                 fifoQueue.push({ shares, price });
-                } else if (shares < 0) {
+              } else if (shares < 0) {
                 let saleShares = Math.abs(shares);
+                // Check total available shares from FIFO
+                const availableShares = fifoQueue.reduce((sum, buyTx) => sum + buyTx.shares, 0);
+                // If not enough shares to cover this sale, ignore this sale entirely.
+                if (availableShares < saleShares) {
+                  return; // Skip processing this sale transaction.
+                }
                 while (saleShares > 0 && fifoQueue.length > 0) {
-                    let buyTx = fifoQueue[0];
-                    if (buyTx.shares <= saleShares) {
-                    realizedGain += (price - buyTx.price) * buyTx.shares;
-                    realizedCost += buyTx.price * buyTx.shares;
+                  let buyTx = fifoQueue[0];
+                  if (buyTx.shares <= saleShares) {
                     saleShares -= buyTx.shares;
                     fifoQueue.shift();
-                    } else {
-                    realizedGain += (price - buyTx.price) * saleShares;
-                    realizedCost += buyTx.price * saleShares;
+                  } else {
                     buyTx.shares -= saleShares;
                     saleShares = 0;
-                    }
+                  }
                 }
-                }
+              }
             });
-
-            // Calculate paper gain for unsold shares.
-            let paperCost = 0;
-            let paperGain = 0;
-            let remainingShares = 0;
-            fifoQueue.forEach((buyTx) => {
-                remainingShares += buyTx.shares;
-                paperCost += buyTx.price * buyTx.shares;
-                paperGain += (currentPrice - buyTx.price) * buyTx.shares;
-            });
-
-            // Compute percentages (if you still want to show them).
-            const realizedPct = realizedCost ? (realizedGain / realizedCost) * 100 : 0;
-            const paperPct = paperCost ? (paperGain / paperCost) * 100 : 0;
-
-            // Calculate the current value as remaining shares * current price.
+            let remainingShares = fifoQueue.reduce((sum, buyTx) => sum + buyTx.shares, 0);
             const value = currentPrice * remainingShares;
-
-            // Accumulate overall totals.
-            overallRealizedGain += realizedGain;
-            overallPaperGain += paperGain;
-            overallCost += (realizedCost + paperCost);
+            overallQuantity += remainingShares;
+  
+            // --- Calculate True Cost ---
+            // Process transactions in order, keeping a running total.
+            let trueCost = 0;
+            let runningTotalShares = 0;
+            grouped[symbol].forEach((tx) => {
+              const shares = parseFloat(tx.shares);
+              const price = parseFloat(tx.purchasePrice);
+              if (shares > 0) {
+                trueCost += price * shares;
+                runningTotalShares += shares;
+              } else if (shares < 0) {
+                let saleShares = Math.abs(shares);
+                // If not enough shares have been bought so far, ignore this sale.
+                if (runningTotalShares < saleShares) {
+                  return;
+                } else {
+                  trueCost -= price * saleShares;
+                  runningTotalShares -= saleShares;
+                }
+              }
+            });
+  
+            // --- Calculate Total Gain ---
+            // Total Gain = Current Value - True Cost.
+            const totalGain = value - trueCost;
+  
+            overallTotalGain += totalGain;
             overallValue += value;
-
+            overallTrueCost += trueCost;
+  
             // Create a new table row for this symbol.
             const tr = document.createElement('tr');
-
+  
             // Column 1: Symbol
             const tdSymbol = document.createElement('td');
             tdSymbol.textContent = symbol;
             tr.appendChild(tdSymbol);
-
+  
             // Column 2: Last (current price)
             const tdLast = document.createElement('td');
             tdLast.textContent = `$${currentPrice.toFixed(2)}`;
             tr.appendChild(tdLast);
-
-            // Column 3: Realized Gain/Loss with percentage
-            const tdRealized = document.createElement('td');
-            tdRealized.textContent = `$${realizedGain.toFixed(2)} (${realizedPct.toFixed(2)}%)`;
-            tr.appendChild(tdRealized);
-
-            // Column 4: Paper Gain/Loss with percentage
-            const tdPaper = document.createElement('td');
-            tdPaper.textContent = `$${paperGain.toFixed(2)} (${paperPct.toFixed(2)}%)`;
-            tr.appendChild(tdPaper);
-
-            // Column 5: Value (remaining shares * current price)
+  
+            // Column 3: Quantity (remaining shares)
+            const tdQuantity = document.createElement('td');
+            tdQuantity.textContent = remainingShares.toString();
+            tr.appendChild(tdQuantity);
+  
+            // Column 4: Total Gain (with percentage)
+            const tdTotalGain = document.createElement('td');
+            tdTotalGain.textContent = `$${totalGain.toFixed(2)}`;
+            tr.appendChild(tdTotalGain);
+  
+            // Column 5: Value (current market value)
             const tdValue = document.createElement('td');
             tdValue.textContent = `$${value.toFixed(2)}`;
             tr.appendChild(tdValue);
-
+  
+            // Column 6: True Cost
+            const tdTrueCost = document.createElement('td');
+            if (remainingShares > 0) {
+                const costBasis = trueCost / remainingShares;
+                tdTrueCost.textContent = `$${trueCost.toFixed(2)} (Basis: $${costBasis.toFixed(2)})`;
+            } else {
+                tdTrueCost.textContent = `$${trueCost.toFixed(2)}`;
+            }
+            tr.appendChild(tdTrueCost);
+  
             resultsBody.appendChild(tr);
-            })
-            .catch((err) => {
+          })
+          .catch((err) => {
             console.error(`Error fetching data for ${symbol}:`, err);
             const tr = document.createElement('tr');
+            
+            // Create error row with 6 columns
             const tdError = document.createElement('td');
-            tdError.colSpan = 5;
+            tdError.colSpan = 6;
             tdError.textContent = `${symbol}: Error fetching data`;
             tr.appendChild(tdError);
             resultsBody.appendChild(tr);
-            })
-            .finally(() => {
+          })
+          .finally(() => {
             completedRequests++;
             if (completedRequests === symbols.length) {
-                // After processing all symbols, append an extra row with overall totals.
-                const trOverall = document.createElement('tr');
-
-                // Column 1: "TOTAL"
-                const tdTotal = document.createElement('td');
-                tdTotal.textContent = "TOTAL";
-                trOverall.appendChild(tdTotal);
-
-                // Column 2: Leave empty since "Last" doesn't apply.
-                const tdEmpty = document.createElement('td');
-                tdEmpty.textContent = "";
-                trOverall.appendChild(tdEmpty);
-
-                // Column 3: Overall Realized Gain
-                const tdOverallRealized = document.createElement('td');
-                tdOverallRealized.textContent = `$${overallRealizedGain.toFixed(2)}`;
-                trOverall.appendChild(tdOverallRealized);
-
-                // Column 4: Overall Paper Gain
-                const tdOverallPaper = document.createElement('td');
-                tdOverallPaper.textContent = `$${overallPaperGain.toFixed(2)}`;
-                trOverall.appendChild(tdOverallPaper);
-
-                // Column 5: Overall Value
-                const tdOverallValue = document.createElement('td');
-                tdOverallValue.textContent = `$${overallValue.toFixed(2)}`;
-                trOverall.appendChild(tdOverallValue);
-
-                resultsBody.appendChild(trOverall);
+              // After processing all symbols, append an extra row with overall totals.
+              const trOverall = document.createElement('tr');
+  
+              // Column 1: "TOTAL"
+              const tdTotal = document.createElement('td');
+              tdTotal.textContent = "TOTAL";
+              trOverall.appendChild(tdTotal);
+  
+              // Column 2: Empty since "Last" doesn't apply.
+              const tdEmpty = document.createElement('td');
+              tdEmpty.textContent = "";
+              trOverall.appendChild(tdEmpty);
+  
+              // Column 3: Overall Quantity
+              const tdOverallQuantity = document.createElement('td');
+              tdOverallQuantity.textContent = "";
+              trOverall.appendChild(tdOverallQuantity);
+  
+              // Column 4: Overall Total Gain
+              const tdOverallTotalGain = document.createElement('td');
+              tdOverallTotalGain.textContent = `$${overallTotalGain.toFixed(2)}`;
+              trOverall.appendChild(tdOverallTotalGain);
+  
+              // Column 5: Overall Value
+              const tdOverallValue = document.createElement('td');
+              tdOverallValue.textContent = `$${overallValue.toFixed(2)}`;
+              trOverall.appendChild(tdOverallValue);
+  
+              // Column 6: Overall True Cost
+              const tdOverallTrueCost = document.createElement('td');
+              tdOverallTrueCost.textContent = `$${overallTrueCost.toFixed(2)}`;
+              trOverall.appendChild(tdOverallTrueCost);
+  
+              resultsBody.appendChild(trOverall);
             }
-            });
-        });
-    });
-}
+          });
+      });
+    })
+  }
+  
 
 // Utility function: Parse a single CSV line (simple parser that handles quoted fields)
 function parseCSVLine(text) {
