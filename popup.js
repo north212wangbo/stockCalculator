@@ -136,6 +136,8 @@ function calculateGains() {
             // --- Calculate remaining shares using FIFO ---
             // Process each transaction in order.
             let fifoQueue = [];
+            let totalSoldShares = 0;
+            let totalSoldValue = 0;
             grouped[symbol].forEach((tx) => {
               const shares = parseFloat(tx.shares);
               const price = parseFloat(tx.purchasePrice);
@@ -159,6 +161,8 @@ function calculateGains() {
                     saleShares = 0;
                   }
                 }
+                totalSoldShares += Math.abs(shares);
+                totalSoldValue += Math.abs(shares) * price;
               }
             });
             let remainingShares = fifoQueue.reduce((sum, buyTx) => sum + buyTx.shares, 0);
@@ -208,26 +212,26 @@ function calculateGains() {
             tdLast.textContent = `$${currentPrice.toFixed(2)}`;
             tr.appendChild(tdLast);
   
-            // Column 3: Quantity (remaining shares)
-            const tdQuantity = document.createElement('td');
-            tdQuantity.textContent = remainingShares.toString();
-            tr.appendChild(tdQuantity);
+            // Column 3: Value (current market value and remaining shares)
+            const tdValue = document.createElement('td');
+            tdValue.textContent = `$${value.toFixed(2)} (Shares: ${remainingShares})`;
+            tr.appendChild(tdValue);
   
-            // Column 4: Total Gain (with percentage)
+            // Column 4: Total sold
+            const tdSold = document.createElement('td');
+            tdSold.textContent = `$${totalSoldValue} (Shares: ${totalSoldShares})`;
+            tr.appendChild(tdSold);
+
+            // Column 5: Total Gain (with percentage)
             const tdTotalGain = document.createElement('td');
             tdTotalGain.textContent = `$${totalGain.toFixed(2)}`;
             tr.appendChild(tdTotalGain);
-  
-            // Column 5: Value (current market value)
-            const tdValue = document.createElement('td');
-            tdValue.textContent = `$${value.toFixed(2)}`;
-            tr.appendChild(tdValue);
   
             // Column 6: True Cost
             const tdTrueCost = document.createElement('td');
             if (remainingShares > 0) {
                 const costBasis = trueCost / remainingShares;
-                tdTrueCost.textContent = `$${trueCost.toFixed(2)} (Basis: $${costBasis.toFixed(2)})`;
+                tdTrueCost.textContent = `$${trueCost.toFixed(2)} (Average: $${costBasis.toFixed(2)})`;
             } else {
                 tdTrueCost.textContent = `$${trueCost.toFixed(2)}`;
             }
@@ -261,21 +265,21 @@ function calculateGains() {
               const tdEmpty = document.createElement('td');
               tdEmpty.textContent = "";
               trOverall.appendChild(tdEmpty);
-  
-              // Column 3: Overall Quantity
-              const tdOverallQuantity = document.createElement('td');
-              tdOverallQuantity.textContent = "";
-              trOverall.appendChild(tdOverallQuantity);
-  
-              // Column 4: Overall Total Gain
-              const tdOverallTotalGain = document.createElement('td');
-              tdOverallTotalGain.textContent = `$${overallTotalGain.toFixed(2)}`;
-              trOverall.appendChild(tdOverallTotalGain);
-  
-              // Column 5: Overall Value
+
+              // Column 3: Overall Value
               const tdOverallValue = document.createElement('td');
               tdOverallValue.textContent = `$${overallValue.toFixed(2)}`;
               trOverall.appendChild(tdOverallValue);
+  
+              // Column 4: Empty since "Total Sold" doesn't apply.
+              const tdOverallSold = document.createElement('td');
+              tdOverallSold.textContent = "";
+              trOverall.appendChild(tdOverallSold);
+  
+              // Column 5: Overall Total Gain
+              const tdOverallTotalGain = document.createElement('td');
+              tdOverallTotalGain.textContent = `$${overallTotalGain.toFixed(2)}`;
+              trOverall.appendChild(tdOverallTotalGain);
   
               // Column 6: Overall True Cost
               const tdOverallTrueCost = document.createElement('td');
