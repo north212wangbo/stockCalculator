@@ -35,6 +35,33 @@ function loadTransactions(callback) {
 function saveTransactions(transactions, callback) {
     chrome.storage.local.set({ transactions }, callback);
 }
+
+// Function to export transactions to CSV
+function exportTransactionsToCSV() {
+  loadTransactions((transactions) => {
+      if (transactions.length === 0) {
+          alert('No transactions to export.');
+          return;
+      }
+
+      // Convert transactions to CSV format
+      const csvContent = "data:text/csv;charset=utf-8,"
+          + transactions.map(tx => `${tx.symbol},${tx.shares},${tx.purchasePrice}`).join("\n");
+
+      // Create a link element to download the CSV file
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "transactions.csv");
+      document.body.appendChild(link);
+
+      // Trigger the download
+      link.click();
+
+      // Clean up
+      document.body.removeChild(link);
+  });
+}
   
 // Update the transaction list in the UI.
 function updateTransactionList() {
@@ -214,12 +241,20 @@ function calculateGains() {
   
             // Column 3: Value (current market value and remaining shares)
             const tdValue = document.createElement('td');
-            tdValue.textContent = `$${value.toFixed(2)} (Shares: ${remainingShares})`;
+            if (remainingShares > 0) {
+              tdValue.textContent = `$${value.toFixed(2)} (${remainingShares} shares)`;
+            } else {
+              tdValue.textContent = `$${value.toFixed(2)}`;
+            }
             tr.appendChild(tdValue);
   
             // Column 4: Total sold
             const tdSold = document.createElement('td');
-            tdSold.textContent = `$${totalSoldValue} (Shares: ${totalSoldShares})`;
+            if (totalSoldShares > 0) {
+              tdSold.textContent = `$${totalSoldValue.toFixed(2)} (${totalSoldShares} shares)`;
+            } else {
+              tdSold.textContent = `$${totalSoldValue.toFixed(2)}`;
+            }
             tr.appendChild(tdSold);
 
             // Column 5: Total Gain (with percentage)
@@ -231,7 +266,7 @@ function calculateGains() {
             const tdTrueCost = document.createElement('td');
             if (remainingShares > 0) {
                 const costBasis = trueCost / remainingShares;
-                tdTrueCost.textContent = `$${trueCost.toFixed(2)} (Average: $${costBasis.toFixed(2)})`;
+                tdTrueCost.textContent = `$${trueCost.toFixed(2)} (average: $${costBasis.toFixed(2)})`;
             } else {
                 tdTrueCost.textContent = `$${trueCost.toFixed(2)}`;
             }
@@ -326,41 +361,54 @@ function parseCSV(contents) {
     let transactions = [];
     // Split file into lines (handle both Unix and Windows line endings)
     let lines = contents.split(/\r\n|\n/);
+    let isFidelityFormat = false;
     if (lines.length === 0) return transactions;
     
     // Assume the first line is the header; skip it.
-    for (let i = 1; i < lines.length; i++) {
+    for (let i = 0; i < lines.length; i++) {
       let line = lines[i].trim();
       if (!line) continue; // Skip empty lines
   
       // Process only lines that start with a date in MM/DD/YYYY format.
-      if (!/^\d{2}\/\d{2}\/\d{4}/.test(line)) continue;
+      //if (!/^\d{2}\/\d{2}\/\d{4}/.test(line)) continue;
   
       // Parse the CSV line.
       let fields = parseCSVLine(line);
-  
-      // We expect at least 7 fields: [0]: Run Date, [1]: Action, [2]: Symbol, [5]: Quantity, [6]: Price ($)
-      if (fields.length < 7) continue;
-  
-      let action = fields[1].toUpperCase();
-      let symbol = fields[2].trim().toUpperCase();
-      let quantity = parseFloat(fields[5]);
-      let price = parseFloat(fields[6]);
-  
-      // Validate required fields.
-      if (!symbol || isNaN(quantity) || isNaN(price)) continue;
-  
-      // Determine operation from action text.
-      // If action contains "SOLD", then it is a sell (quantity becomes negative).
-      if (action.indexOf("SOLD") !== -1) {
-        quantity = -Math.abs(quantity);
+
+      if (fields.length == 3) {
+        //export from the app itself
+        let symbol = fields[0].trim().toUpperCase();
+        let quantity = fields[1];
+        let price = fields[2];
+
+        transactions.push({ symbol, shares: quantity, purchasePrice: price });
+      } else if (fields.length >= 7) {
+        // Fidelity format: [0]: Run Date, [1]: Action, [2]: Symbol, [5]: Quantity, [6]: Price ($)
+        isFidelityFormat = true;
+        let action = fields[1].toUpperCase();
+        let symbol = fields[2].trim().toUpperCase();
+        let quantity = parseFloat(fields[5]);
+        let price = parseFloat(fields[6]);
+    
+        // Validate required fields.
+        if (!symbol || isNaN(quantity) || isNaN(price)) continue;
+    
+        // Determine operation from action text.
+        // If action contains "SOLD", then it is a sell (quantity becomes negative).
+        if (action.indexOf("SOLD") !== -1) {
+          quantity = -Math.abs(quantity);
+        }
+    
+        transactions.push({ symbol, shares: quantity, purchasePrice: price });
       }
-  
-      transactions.push({ symbol, shares: quantity, purchasePrice: price });
     }
   
     // Reverse the array so that the oldest transaction is first.
-    return transactions.reverse();
+    if (isFidelityFormat) {
+      return transactions.reverse();
+    } 
+
+    return transactions;
 }
   
 
@@ -407,3 +455,5 @@ window.addEventListener('load', () => {
     updateTransactionList();
     calculateGains();
 });
+
+document.getElementById('exportBtn').addEventListener('click', exportTransactionsToCSV);
