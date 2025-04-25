@@ -457,3 +457,29 @@ window.addEventListener('load', () => {
 });
 
 document.getElementById('exportBtn').addEventListener('click', exportTransactionsToCSV);
+
+// Function to clear all transactions and table cells
+function removeAllTransactions() {
+  // Show a confirmation prompt to the user
+  const userConfirmed = confirm("Are you sure you want to remove all transactions? This will also clear the storage.");
+  
+  if (userConfirmed) {
+      // Clear the transactions in Chrome storage
+      saveTransactions([], () => {
+          // Clear the transactions list in the HTML
+          const transactionsList = document.getElementById('transactions');
+          transactionsList.innerHTML = '';
+
+          // Clear the results table body in the HTML
+          const resultsBody = document.getElementById('resultsBody');
+          resultsBody.innerHTML = '';
+
+          console.log("All transactions have been cleared from storage and UI.");
+      });
+  } else {
+      console.log("User canceled the 'Remove All' action.");
+  }
+}
+
+// Add event listener to the "Remove All" button
+document.getElementById('removeAllBtn').addEventListener('click', removeAllTransactions);
